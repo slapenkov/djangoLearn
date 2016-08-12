@@ -37,12 +37,12 @@ class NewVisitorTest(LiveServerTestCase):
         inputbox.send_keys('Buy peacock feathers')
 
         # When he hits enter, the page updates, and now the page lists
-        # "1:Buy peacock feather" as an ithem in a to-do list
+        # "1:Buy peacock feathers" as an ithem in a to-do list table
         inputbox.send_keys(Keys.ENTER)
 
-        table = self.browser.find_element_by_id('id_list_table')
-        rows = table.find_elements_by_tag_name('tr')
-        self.assertIn('1: Buy peacock feathers', [row.text for row in rows])
+        user_list_url = self.browser.current_url
+        self.assertRegex(user_list_url, '/lists/.+')
+        self.check_for_row_in_list_table('1: Buy peacock feathers')
 
         # There is still a text box inviting him to add another ithem. He
         # enters "Use peacock feathers to make a fly" (User is very methodical)
@@ -51,18 +51,38 @@ class NewVisitorTest(LiveServerTestCase):
         inputbox.send_keys(Keys.ENTER)
 
         # The page updates again, and now shows both items on his list
-        table = self.browser.find_element_by_id('id_list_table')
-        rows = table.find_elements_by_tag_name('tr')
         self.check_for_row_in_list_table('1: Buy peacock feathers')
         self.check_for_row_in_list_table('2: Use peacock feathers to make a fly')
-        
-        # User wonders whether the site will remember his list. Then he sees
-        # that the site has generated a unique URL for him -- there is some
-        # explanatory text to that effect
-        self.fail('Finish the test!')
 
-        # He visits that URL - his to-do list is still there
+        # Now a new user comes along to the site
 
-        # Satisfied, he goes back to sleep
+        ## We use a new browser session to make sure that no information
+        ## of first user is coming through from cookies etc
+        self.browser.quit()
+        self.browser = webdriver.Firefox()
+
+        # second user visits the home page. There is no sign of first user list
+        self.browser.get(self.live_server_url)
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertNotIn('make a fly', page_text)
+
+        # second user starts a new list by entering a new item. He
+        # is less interesting then first user
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys('Buy milk')
+        inputbox.send_keys(Keys.ENTER)
+
+        # Second user gets his own unique URL
+        user2_list_url = self.browser.current_url
+        self.assertRegex(user2_list_url, '/lists/.+')
+        self.assertNotEqual(user2_list_url, user_list_url)
+
+        # Again, there is no trace of first user list
+        page_text = self.browser.find_element_by_tag_name('body').text
+        self.assertNotIn('Buy peacock feathers', page_text)
+        self.assertIn('Buy milk', page_text)
+
+        # Satisfied, they both go back to sleep
 
 
